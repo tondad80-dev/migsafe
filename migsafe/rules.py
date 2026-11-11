@@ -198,13 +198,15 @@ def check_statement(statement: Statement, new_tables: set[str]) -> list[Finding]
     return found
 
 
-def check_sql(sql: str, filename: str = "<sql>") -> Report:
-    """Check one migration."""
-    return check_files({filename: sql})
+def check_sql(
+    sql: str, filename: str = "<sql>", *, assume_transactional: bool = False,
+) -> Report:
+    """Check one migration, optionally starting inside a runner transaction."""
+    return check_files({filename: sql}, assume_transactional=assume_transactional)
 
 
-def check_files(files: dict[str, str]) -> Report:
-    """Check several migrations; new-table knowledge is shared across the set."""
+def check_files(files: dict[str, str], *, assume_transactional: bool = False) -> Report:
+    """Check migrations; share new-table knowledge, reset transaction state per file."""
     report = Report(files=list(files))
     all_statements: dict[str, list[Statement]] = {}
     for name, sql in files.items():
@@ -218,7 +220,7 @@ def check_files(files: dict[str, str]) -> Report:
 
     for name, statements in all_statements.items():
         sql = files[name]
-        in_transaction = False
+        in_transaction = assume_transactional
         for statement in statements:
             report.findings.extend(check_statement(statement, new_tables))
             upper = statement.upper
