@@ -38,6 +38,35 @@ migsafe check migrations/ --json
 
 Exit code is `2` when a finding at or above `--fail-on` exists, so `migsafe check migrations/ && psql ...` is safe by default.
 
+## Transaction-wrapped migrations
+
+By default, migsafe tracks only explicit transaction statements in each SQL file.
+If your migration runner starts a transaction before executing each file, opt in:
+
+```bash
+migsafe check migrations/ --assume-transactional
+```
+
+The Python API exposes the same keyword-only option:
+
+```python
+from migsafe.rules import check_files, check_sql
+
+report = check_sql(sql, assume_transactional=True)
+report = check_files({"migration.sql": sql}, assume_transactional=True)
+```
+
+Each file starts with its own assumed transaction. An explicit `COMMIT` or
+`ROLLBACK` ends it for the remaining statements; another `BEGIN` can reopen it.
+`BEGIN` inside an active transaction does not nest. `ROLLBACK TO SAVEPOINT`
+keeps the transaction active, as does `COMMIT AND CHAIN` or `ROLLBACK AND CHAIN`.
+`AND NO CHAIN` ends it.
+
+This is one setting for all selected files, with no per-file override. For
+migrations configured to run outside a transaction (for example,
+`atomic = False`), check them separately without the flag. The option does not
+read runner configuration, connect to a database, or change how SQL is executed.
+
 ## Why it exists
 
 `ALTER TABLE users ADD COLUMN last_seen timestamptz DEFAULT now()` is four words of difference from a
