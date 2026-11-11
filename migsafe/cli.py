@@ -38,6 +38,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("paths", nargs="+", help="SQL files or directories")
     parser.add_argument("--json", action="store_true", help="machine-readable output")
     parser.add_argument(
+        "--assume-transactional",
+        action="store_true",
+        help="assume each file starts inside a migration runner transaction",
+    )
+    parser.add_argument(
         "--fail-on",
         choices=["none", "medium", "high", "critical"],
         default="high",
@@ -55,7 +60,7 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
-    report = check_files(collect(args.paths))
+    report = check_files(collect(args.paths), assume_transactional=args.assume_transactional)
 
     if args.json:
         print(json.dumps({
